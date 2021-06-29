@@ -14,6 +14,13 @@ const SCALE = RADIUS+20;
 
 
 
+// links
+//
+// python-based article
+// http://llimllib.github.io/pymag-trees/
+//
+// Reingold-Tilford Algorithm in-depth
+// https://rachel53461.wordpress.com/2014/04/20/algorithm-for-drawing-trees/
 
 
 // GRAPH UTILITIES
@@ -47,31 +54,22 @@ const edgeMapToRootNode = (edgeMap) => {
 
 // TREE DRAWING METHODS
 
-// crappy thing I came up with based on skimming that one article
-// http://llimllib.github.io/pymag-trees/
-const bfsPosCalc = (edgeMap, nodeCount) => {
+// the Wetherell/Shannon algo works according to the python article
+const thinPosCalc = (edgeMap, nodeCount) => {
+    const nexts = Array(nodeCount).fill(0);
     const positions = Array(nodeCount);
-    const queue = [[0,0]];
-    let trackedLevel = 0;
-    let [x,y] = [SCALE,SCALE]
-    while(queue.length > 0) {
-        const [curNode, curLevel] = queue.shift();
-        if(curLevel > trackedLevel) {
-            trackedLevel = curLevel;
-            x = SCALE;
-            y += SCALE;
+    const applyMethod = (node,depth=0) => {
+        positions[node.id] = [SCALE*(nexts[depth]+1),SCALE*(depth+1)]
+        nexts[depth] += 1;
+        if(node.children===null) {
+            return;
         }
-        positions[curNode] = [x,y];
-        x += SCALE;
-        const children = edgeMap[curNode];
-        if (children === undefined) {
-            continue;
-        }
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i];
-            queue.push([child,curLevel+1]);
+        for(const child of node.children) {
+            applyMethod(child,depth+1);
         }
     }
+    const root = edgeMapToRootNode(edgeMap);
+    applyMethod(root);
     return positions;
 }
 
@@ -99,42 +97,38 @@ const knuthPosCalc = (edgeMap, nodeCount) => {
 
 
 // picks node positions so that parent nodes are centered above their children
+// more or less copied from the article and converted from python2.7 to JS
 const parentBasedPosCalc = (edgeMap,nodeCount) => {
     const root = edgeMapToRootNode(edgeMap);
     const positions = Array(nodeCount);
     // indices for nexts and offset are depth
     const setup = (node, depth=0, nexts, offset) => {
-
         // post-order ~ bottom-up
         if (node.children) {
-            node.children.map( child => setup(child,depth+1,nexts,offset));
+            for (const child of node.children) {
+                setup(child,depth+1,nexts,offset);
+            }
         }
-
         node.depth = depth;
-
         let place; 
         if(node.children === null) {
             place = nexts[depth];
             node.x = place;
         }
-        else if (node.children.length==1) {
+        else if (node.children.length === 1) {
             place =  node.children[0].x - 1
         }
         else {
-            const summer = (acc,cur) => (acc+cur.x);
-            place = node.children.reduce(summer,0) / node.children.length;
+            const adder = (acc,cur) => (acc+cur.x);
+            place = node.children.reduce(adder,0) / node.children.length;
         }
-
         offset[depth] = Math.max(offset[depth], nexts[depth]-place);
-
         if(node.children) {
             node.x = place + offset[depth];
         }
-
         nexts[depth] += 2;
         node.mod = offset[depth];
     }
-
     const addmods = (node,modsum=0) => {
         node.x = node.x + modsum;
         positions[node.id] = [SCALE*(node.x+1), SCALE*(node.depth+1)];
@@ -174,14 +168,12 @@ const TreeDrawing = (props) => {
 
     const nodePositions = calculatePositions(props.edgeMap, props.nodeCount);
     const nodes = []
+    const edges = [];
     for (let i = 0; i < props.nodeCount; i++) {
         const [x,y] = nodePositions[i];
         nodes.push(
             (<Node key={i} x={x} y={y} />)
         );
-    }
-    const edges = [];
-    for(let i = 0; i < props.nodeCount; i++) {
         const curEdges = props.edgeMap[i];
         if (curEdges === undefined) {
             continue;
@@ -209,7 +201,7 @@ const TreeDrawing = (props) => {
 
 
 const Forest = (props) => {
-    const methods = [bfsPosCalc, knuthPosCalc,parentBasedPosCalc];
+    const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc];
     const drawings = methods.map((method,i) => (
         <div className="Column" key={i}>
             <h1>{method.name}</h1>
