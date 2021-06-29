@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-const SCREEN_WIDTH = 1618;
-const SCREEN_HEIGHT = 1000;
+const SCREEN_WIDTH = 800;
+const SCREEN_HEIGHT = 200;
 
 const RADIUS = 10;
 const STROKE_WIDTH = 4;
@@ -30,8 +30,10 @@ const edgeMapToRootNodeOfBinaryTree = (edgeMap) => {
         if (children) {
             cur["left"] = { id: children[0], left: null, right: null, }
             queue.push(cur.left);
-            cur["right"] = { id: children[1], left: null, right: null, }
-            queue.push(cur.right);
+            if(children.length === 2) {
+                cur["right"] = { id: children[1], left: null, right: null, }
+                queue.push(cur.right);
+            }
         }
     }
     return root;
@@ -102,9 +104,9 @@ const Node = (props) => (
 // props:
 // => tree (i.e. an edge map, with 0 as root)
 // => nodeCount, the number of nodes
-const Tree = (props) => {
+const TreeDrawing = (props) => {
     // transforms a tree into a list of x,y coordinates, one for each node
-    const calculatePositions = knuthPosCalc;
+    const calculatePositions = props.calcMethod;
 
     const nodePositions = calculatePositions(props.edgeMap, props.nodeCount);
     const nodes = []
@@ -141,16 +143,48 @@ const Tree = (props) => {
     );
 }
 
+
+const Forest = (props) => {
+    const methods = [bfsPosCalc, knuthPosCalc];
+    const drawings = methods.map((method,i) => (
+        <div key={i}>
+            <h1>{method.name}</h1>
+            <TreeDrawing
+                calcMethod={method}
+                edgeMap={props.edgeMap}
+                nodeCount={props.nodeCount}
+            />
+        </div>
+        )
+    );
+    console.log(drawings);
+    return (
+        <div>
+            {drawings}
+        </div>
+    );
+}
+
 const TREE = {
+    0: [1,2],
+    1: [3,],
+    2: [4,5],
+    3: [6,7],
+}
+
+const FULL_TREE = {
     0: [1,2],
     1: [3,4],
     2: [5,6],
     3: [7,8],
+    4: [9,10],
+    5: [11,12],
+    6: [13,14],
 }
 
 ReactDOM.render(
   <React.StrictMode>
-    <Tree nodeCount={9} edgeMap={TREE}/>
+    <Forest nodeCount={15} edgeMap={FULL_TREE} />
   </React.StrictMode>,
   document.getElementById('root')
 );
