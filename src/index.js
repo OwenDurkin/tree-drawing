@@ -14,32 +14,38 @@ const SCALE = RADIUS+20;
 
 
 
-// FUNCTIONS FOR TREE DRAWING
 
 
-// converts an edge-map to a linked-node setup in memory. Assumes the tree is binary.
-// Returns the root node.
-const edgeMapToRootNodeOfBinaryTree = (edgeMap) => {
+// GRAPH UTILITIES
+
+// converts an edge map to a linked-node setup in memory
+// each node is an object of the form {id: int, children:[id1,id2,...]},
+//   where ids are node identifiers
+// returns the root node
+const edgeMapToRootNode = (edgeMap) => {
     const root = {
         id: 0,
-        left: null,
-        right: null,
+        children: null,
     }; 
     const queue = [root];
     while (queue.length > 0) {
         const cur = queue.shift();
-        const children = edgeMap[cur.id];
-        if (children) {
-            cur["left"] = { id: children[0], left: null, right: null, }
-            queue.push(cur.left);
-            if(children.length === 2) {
-                cur["right"] = { id: children[1], left: null, right: null, }
-                queue.push(cur.right);
-            }
+        const childrenIds = edgeMap[cur.id];
+        if (childrenIds == null) {
+            continue;
         }
+        const children = childrenIds.map((id) => {
+            const child = { id: id, children: null};
+            return child;
+        });
+        cur["children"] = children;
+        children.map(x => queue.push(x));
     }
     return root;
 }
+
+
+// TREE DRAWING METHODS
 
 // crappy thing I came up with based on skimming that one article
 // http://llimllib.github.io/pymag-trees/
@@ -73,17 +79,18 @@ const bfsPosCalc = (edgeMap, nodeCount) => {
 // only works on binary trees, uses in-order traversal
 const knuthPosCalc = (edgeMap, nodeCount) => {
     const positions = Array(nodeCount);
-    const root = edgeMapToRootNodeOfBinaryTree(edgeMap);
-
+    const root = edgeMapToRootNode(edgeMap);
     let i = 0;
     const applyMethod = (node, depth) => {
-        if (node.left) {
-            applyMethod(node.left, depth+1);
+        const left = node.children ? node.children[0] : null;
+        const right = node.children ? node.children[1] : null;
+        if (left) {
+            applyMethod(left, depth+1);
         }
         positions[node.id] = [SCALE*(i+1),SCALE*(depth+1)]
         i += 1;
-        if(node.right) {
-            applyMethod(node.right,depth+1);
+        if(right) {
+            applyMethod(right,depth+1);
         }
     }
     applyMethod(root,0);
