@@ -1,7 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-const SCREEN_WIDTH = 800;
+import './index.css';
+
+const SCREEN_WIDTH = 600;
 const SCREEN_HEIGHT = 200;
 
 const RADIUS = 10;
@@ -147,7 +149,7 @@ const TreeDrawing = (props) => {
 const Forest = (props) => {
     const methods = [bfsPosCalc, knuthPosCalc];
     const drawings = methods.map((method,i) => (
-        <div key={i}>
+        <div className="Column" key={i}>
             <h1>{method.name}</h1>
             <TreeDrawing
                 calcMethod={method}
@@ -157,34 +159,51 @@ const Forest = (props) => {
         </div>
         )
     );
-    console.log(drawings);
     return (
-        <div>
+        <div className="Row">
             {drawings}
         </div>
     );
 }
 
-const TREE = {
-    0: [1,2],
-    1: [3,],
-    2: [4,5],
-    3: [6,7],
-}
 
-const FULL_TREE = {
-    0: [1,2],
-    1: [3,4],
-    2: [5,6],
-    3: [7,8],
-    4: [9,10],
-    5: [11,12],
-    6: [13,14],
-}
+const TREES = [
+    [{ // simple tree
+        0: [1,2],
+        1: [3,],
+        2: [4,5],
+        3: [6,7],
+    }, 8],
+    [{ // full tree
+        0: [1,2],
+        1: [3,4],
+        2: [5,6],
+        3: [7,8],
+        4: [9,10],
+        5: [11,12],
+        6: [13,14],
+    }, 15],
+    [{ // linked list
+        0: [1],
+        1: [2],
+        2: [3],
+        3: [4],
+        4: [5],
+    }, 6],
+    [{ // sparse
+        0: [1,2],
+        2: [3],
+        3: [4],
+    }, 5],
+];
+
+const alltreedrawings = TREES.map((tree,i) => (
+    <Forest key={i} nodeCount={tree[1]} edgeMap={tree[0]} />)
+);
 
 ReactDOM.render(
   <React.StrictMode>
-    <Forest nodeCount={15} edgeMap={FULL_TREE} />
+    {alltreedrawings}
   </React.StrictMode>,
   document.getElementById('root')
 );
