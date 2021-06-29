@@ -98,6 +98,61 @@ const knuthPosCalc = (edgeMap, nodeCount) => {
 }
 
 
+// picks node positions so that parent nodes are centered above their children
+const parentBasedPosCalc = (edgeMap,nodeCount) => {
+    const root = edgeMapToRootNode(edgeMap);
+    const positions = Array(nodeCount);
+    // indices for nexts and offset are depth
+    const setup = (node, depth=0, nexts, offset) => {
+
+        // post-order ~ bottom-up
+        if (node.children) {
+            node.children.map( child => setup(child,depth+1,nexts,offset));
+        }
+
+        node.depth = depth;
+
+        let place; 
+        if(node.children === null) {
+            place = nexts[depth];
+            node.x = place;
+        }
+        else if (node.children.length==1) {
+            place =  node.children[0].x - 1
+        }
+        else {
+            const summer = (acc,cur) => (acc+cur.x);
+            place = node.children.reduce(summer,0) / node.children.length;
+        }
+
+        offset[depth] = Math.max(offset[depth], nexts[depth]-place);
+
+        if(node.children) {
+            node.x = place + offset[depth];
+        }
+
+        nexts[depth] += 2;
+        node.mod = offset[depth];
+    }
+
+    const addmods = (node,modsum=0) => {
+        node.x = node.x + modsum;
+        positions[node.id] = [SCALE*(node.x+1), SCALE*(node.depth+1)];
+        if(node.children === null) {
+            return;
+        }
+        for(const child of node.children) {
+            addmods(child, modsum);
+        }
+    }
+
+    setup(root,0,Array(nodeCount).fill(0),Array(nodeCount).fill(0));
+    addmods(root,0);
+    return positions;
+}
+
+
+
 // ACTUAL REACT COMPONENTS
 
 // props: x,y
@@ -154,7 +209,7 @@ const TreeDrawing = (props) => {
 
 
 const Forest = (props) => {
-    const methods = [bfsPosCalc, knuthPosCalc];
+    const methods = [bfsPosCalc, knuthPosCalc,parentBasedPosCalc];
     const drawings = methods.map((method,i) => (
         <div className="Column" key={i}>
             <h1>{method.name}</h1>
