@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 
 import './index.css';
 
-const SCREEN_WIDTH = 600;
+const SCREEN_WIDTH = 500;
 const SCREEN_HEIGHT = 200;
 
 const RADIUS = 10;
