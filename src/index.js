@@ -3,8 +3,10 @@ import ReactDOM from 'react-dom';
 
 import './index.css';
 
+/*
 const SCREEN_WIDTH = 400;
 const SCREEN_HEIGHT = 300;
+*/
 
 const RADIUS = 10;
 const STROKE_WIDTH = 4;
@@ -217,7 +219,7 @@ const quadraticPosCalc = (edgeMap, nodeCount) => {
         }
         return node.x;
     }
-    const width = (node) => (getSidemost(node,Math.max)-getSidemost(node,Math.min));
+    //const width = (node) => (getSidemost(node,Math.max)-getSidemost(node,Math.min));
     const calcPos = (node) => {
         if(node.children) {
             node.children.forEach((child,i) => {
@@ -306,18 +308,12 @@ const Node = (props) => (
     />
 );
 
-// props:
-// => tree (i.e. an edge map, with 0 as root)
-// => nodeCount, the number of nodes
-const TreeDrawing = (props) => {
-    // transforms a tree into a list of x,y coordinates, one for each node
-    const calculatePositions = props.calcMethod;
 
-    const nodePositions = calculatePositions(props.edgeMap, props.nodeCount);
-    const nodes = []
+const TreeDrawing = (props) => {
+    const nodes = [];
     const edges = [];
     for (let i = 0; i < props.nodeCount; i++) {
-        const [x,y] = nodePositions[i];
+        const [x,y] = props.nodePositions[i];
         nodes.push(
             (<Node key={i} x={x} y={y} />)
         );
@@ -329,17 +325,17 @@ const TreeDrawing = (props) => {
             const c = curEdges[j];
             edges.push((<line
                 key={[i,j]}
-                x1={nodePositions[i][0]}
-                y1={nodePositions[i][1]}
-                x2={nodePositions[c][0]}
-                y2={nodePositions[c][1]}
+                x1={props.nodePositions[i][0]}
+                y1={props.nodePositions[i][1]}
+                x2={props.nodePositions[c][0]}
+                y2={props.nodePositions[c][1]}
                 stroke="black"
                 strokeWidth={STROKE_WIDTH}
             />));
         }
     }
     return (
-        <svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+        <svg width={props.width} height={props.height}>
             {nodes}
             {edges}
         </svg>
@@ -347,25 +343,39 @@ const TreeDrawing = (props) => {
 }
 
 
+const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,quadraticPosCalc];
 const Forest = (props) => {
-    const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,quadraticPosCalc];
-    const drawings = methods.map((method,i) => (
-        <div className="Column" key={i}>
-            <h1>{method.name}</h1>
-            <TreeDrawing
-                calcMethod={method}
-                edgeMap={props.edgeMap}
-                nodeCount={props.nodeCount}
-            />
-        </div>
-        )
+    const methodPositions = methods.map((method,i) => 
+        method(props.edgeMap,props.nodeCount)
     );
+    const drawings = methodPositions.map((methodPosition,i) => {
+        let width = 0;
+        let height = 0;
+        methodPosition.forEach((xycoord) => {
+            const [x,y] = xycoord;
+            width = Math.max(width, x);
+            height = Math.max(height, y);
+        });
+        return (
+            <div className="Column" key={i}>
+                <h1>{methods[i].name.substr(0,methods[i].name.search("Pos"))}</h1>
+                <TreeDrawing
+                    nodePositions={methodPosition}
+                    edgeMap={props.edgeMap}
+                    nodeCount={props.nodeCount}
+                    width={width+SCALE}
+                    height={height+SCALE}
+                />
+            </div>
+        );
+    });
     return (
         <div className="Row">
             {drawings}
         </div>
     );
 }
+
 
 
 const TREES = [
