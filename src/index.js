@@ -76,7 +76,7 @@ const thinPosCalc = (edgeMap, nodeCount) => {
 
 // only works on binary trees, uses in-order traversal
 const knuthPosCalc = (edgeMap, nodeCount) => {
-    const positions = Array(nodeCount);
+    const positions = Array(nodeCount).fill([0,0]);
     const root = edgeMapToRootNode(edgeMap);
     let i = 0;
     const applyMethod = (node, depth) => {
@@ -100,7 +100,7 @@ const knuthPosCalc = (edgeMap, nodeCount) => {
 // more or less copied from the article and converted from python2.7 to JS
 const parentBasedPosCalc = (edgeMap,nodeCount) => {
     const root = edgeMapToRootNode(edgeMap);
-    const positions = Array(nodeCount);
+    const positions = Array(nodeCount).fill([0,0]);
     // indices for nexts and offset are depth
     const setup = (node, depth=0, nexts, offset) => {
         // post-order ~ bottom-up
@@ -249,6 +249,13 @@ const TREES = [
         2: [3],
         3: [4],
     }, 5],
+    [{ // Dr. Dobbs
+        0: [1,2,3],
+        1: [4,5],
+        5: [6,7],
+        3: [8,9],
+        9: [10,11,12,13,14],
+    }, 15],
 ];
 
 const alltreedrawings = TREES.map((tree,i) => (
