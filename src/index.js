@@ -41,6 +41,7 @@ const edgeMapToRootNode = (edgeMap) => {
     const root = {
         id: 0,
         children: null,
+        parent: null,
     }; 
     const queue = [root];
     while (queue.length > 0) {
@@ -50,7 +51,7 @@ const edgeMapToRootNode = (edgeMap) => {
             continue;
         }
         const children = childrenIds.map((id) => {
-            const child = { id: id, children: null};
+            const child = { id: id, children: null, parent: cur};
             return child;
         });
         cur["children"] = children;
@@ -58,47 +59,8 @@ const edgeMapToRootNode = (edgeMap) => {
     }
     return root;
 }
-/*
-// contours are the leftmost (rightmost) x coordinate of a node on a given level of a tree
-const contour = (root, maxlevel, comparator) {
-    let cont = [];
-    const calcCont = (node, comparator, depth=0) => { 
-        if (cont.length===0) {
-            cont = [node.x];
-        }
-        else if (cont.length < level+1) {
-            cont.push(node.x);
-        }
-        else if (comparator(cont[level], node.x)) {
-            cont[level] = node.x
-        }
-        for (const child of node.children) {
-            calcCont(child, comparator, level+1, cont);
-        }
-    }
-    calcCont(root,comparator,0);
-    return cont
-}
-*/
 
 
-// for determining how far a subtree needs to be moved to the right
-/*
-const push_right = (leftNode, rightNode) => {
-    leftContour = contour(leftNode, (x,y) => (x < y)); 
-    rightContour = contour(rightNode, (x,y) => (x > y));
-    let max = 0;
-    leftContour.forEach((lx,i) => {
-        ly = rightContour[i];
-        max = Math.max(lx-ly,max);
-    })
-    return max + 1;
-}
-*/
-
-// for use with thread-involved algos;
-// 
-// threads in this context have nothing to do with multithreading
 
 
 // TREE DRAWING METHODS
@@ -248,53 +210,97 @@ const quadraticPosCalc = (edgeMap, nodeCount) => {
 }
 
 
-/*
-const reingoldTilfordPosCalc = (edgeMap,nodeCount) => {
+const buchheimPosCalc = (edgeMap,nodeCount) => {
     const positions = Array(nodeCount);
     const root = edgeMapToRootNode(edgeMap);
-    // assign 0 to leftmost nodes, shift by 1 if it has a left sibling
+
+    // returns a contour of the given subtree with given root
+    // contour entries denote maximum x distance from the root node
+    // comp is a comparator function
+    //   (e.g. Math.max for right contour, Math.min for left contour)
+    const calcContour = (rootNode, comp) => {
+        let contour = [0];
+        // mode ~ relative x wrt rootNode
+        const applyMethod = (node, depth=0, mod=0) => {
+            // this is the first node we have visited on this level
+            if (depth >= contour.length) {
+                contour.push(mod);
+            }
+            // we have visited this depth before; check to update the contour at this depth
+            else {
+                contour[depth] = comp(contour[depth],mod);
+            }
+            if(node.children) {
+                node.children.forEach((child) => {
+                    applyMethod(child,depth+1,mod+child.mod);
+                });
+            }
+        }
+        applyMethod(rootNode);
+        return contour;
+    }
+
+    // determines the appropriate mod value for the right subtree with respect to the left
+    const calcPush = (left,right) => {
+        const rightContour = calcContour(left, Math.max);
+        const leftContour = calcContour(right, Math.min);
+        let maxSep = 0;
+        const maxIter = Math.min(leftContour.length,rightContour.length);
+        for (let i = 0; i < maxIter; i++) {
+            const rx = rightContour[i];
+            const lx = leftContour[i];
+            maxSep = Math.max(maxSep, rx-lx);
+        }
+        return maxSep + NODE_SEP;
+    }
+
     // center children over parents
-    const initialSetup = (node) => {
+    const firstwalk = (node) => {
+        node.mod = 0;
         if(node.children) {
-            // arbitrary starting x; handles base case
-            node.children.forEach((child,i) => {
-                child.x = NODE_SEP*i;
+            // calculate sub-trees
+            node.children.forEach((child) => {
+                firstwalk(child);
             });
-            // determine the subtrees; shift as necessary
+
+            // determine how for each sub-tree needs to be pushed
             let mod = 0;
-            let [leftmost, rightmost] = [0,0];
             node.children.forEach((child,i) => {
-                const [subleftmost, subrightmost] = initialSetup(child);
-                if (mod+rightmost <= child.x-subleftmost) {
-                    mod += SUBTREE_SEP + (child.x-(mod+rightmost));
+                if (i > 0) {
+                    let prevNode = node.children[i-1];
+                    mod += calcPush(prevNode, child);
                     child.mod = mod;
                 }
-                rightmost = child.x+mod+subrightmost;
             });
             // center the parent over the children 
-            node.x = (rightmost-leftmost)/2
-            // return the left and right countours
-            return [leftmost,rightmost];
-        } else {
-            return [node.x,node.x];
+            node.children.forEach((child) => {
+                child.mod -= mod/2;
+            });
         }
     }
     // apply shifts in O(n) time throughout the tree
-    const modify = (node, depth=0, mod=0) => {
-        positions[node.id] = [SCALE*(node.x+mod+1),SCALE*(depth+1)];
+    const secondwalk = (node, depth=0, mod=0) => {
+        positions[node.id] = [SCALE*mod,SCALE*depth];
         if(node.children) {
             node.children.forEach((child,i) => {
-                modify(child,depth+1,mod+node.mod);
+                secondwalk(child,depth+1,mod+child.mod);
             });
         }
     }
-    // execute the algorithm
-    root.x = 0;
-    initialSetup(root);
-    modify(root);
+    // determine mod values for each node (subtree)
+    firstwalk(root);
+    // determine actual x coordinates for each node according to mod values
+    secondwalk(root);
+    // some nodes will have negative x-coordinates: push off-screen nodes to the right
+    let min_x = 0;
+    for (const [x,] of positions) {
+        min_x = Math.min(min_x,x);
+    }
+    for (let i = 0; i < nodeCount; i++) {
+        positions[i] = [positions[i][0]-min_x+SCALE,positions[i][1]+SCALE];
+    }
     return positions;
 }
-*/
 
 // ACTUAL REACT COMPONENTS
 
@@ -343,7 +349,7 @@ const TreeDrawing = (props) => {
 }
 
 
-const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,quadraticPosCalc];
+const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,quadraticPosCalc,buchheimPosCalc];
 const Forest = (props) => {
     const methodPositions = methods.map((method,i) => 
         method(props.edgeMap,props.nodeCount)
