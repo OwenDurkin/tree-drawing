@@ -158,54 +158,49 @@ const parentBasedPosCalc = (edgeMap,nodeCount) => {
 
 
 const NODE_SEP = 1;
-const quadraticPosCalc = (edgeMap, nodeCount) => {
+const widePosCalc = (edgeMap, nodeCount) => {
     const positions = Array(nodeCount);
     const root = edgeMapToRootNode(edgeMap);
-    const moveRight = (node, mod) =>  {
-        node.x += mod;
-        if(node.children) {
-            for(const child of node.children) {
-                moveRight(child, mod);
-            }
-        }
-    }
-    const getSidemost = (node,comp) => {
-        if (node.children) {
-            return node.children.reduce(
-                (acc,nextChild) => {
-                    acc = comp(acc,getSidemost(nextChild,comp));
-                    return acc;
-                },
-                node.x
-            );
-        }
-        return node.x;
-    }
-    //const width = (node) => (getSidemost(node,Math.max)-getSidemost(node,Math.min));
     const calcPos = (node) => {
+        node.mod = 0;
+        node.rightmost = 0;
+        node.leftmost = 0;
         if(node.children) {
+            let mod = 0;
             node.children.forEach((child,i) => {
-                child.x = 0;
                 calcPos(child);
                 if(i > 0) {
                     const prev = node.children[i-1];
-                    const offset = getSidemost(prev,Math.max)+NODE_SEP;
-                    moveRight(child,offset);
+                    const offset = prev.rightmost-child.leftmost+NODE_SEP;
+                    mod += offset;
+                    child.mod = mod;
                 }
-                node.x = (node.children[0].x + node.children[node.children.length-1].x)/2;
             });
+            // center parent above children
+            node.children.forEach((child) => {
+                child.mod -= mod/2;
+            });
+            node.leftmost  = Math.min(...node.children.map(child=>(child.mod+child.leftmost)));
+            node.rightmost = Math.max(...node.children.map(child=>(child.mod+child.rightmost)));
         }
     }
-    const applyPos = (node,depth=0) => {
-        positions[node.id] = [SCALE*(node.x+1),SCALE*(depth+1)];
+    const applyPos = (node,depth=0,mod=0) => {
+        positions[node.id] = [SCALE*mod,SCALE*depth];
         if(node.children) {
             for(const child of node.children) {
-                applyPos(child,depth+1);
+                applyPos(child,depth+1,mod+child.mod);
             }
         }
     }
     calcPos(root);
     applyPos(root);
+    let min_x = 0;
+    for(const [x,] of positions) {
+        min_x = Math.min(min_x,x);
+    }
+    for (let i = 0; i < nodeCount; i++) {
+        positions[i] = [positions[i][0]-min_x+SCALE,positions[i][1]+SCALE];
+    }
     return positions;
 }
 
@@ -267,7 +262,7 @@ const buchheimPosCalc = (edgeMap,nodeCount) => {
             node.children.forEach((child,i) => {
                 if (i > 0) {
                     const leftContour = calcContour(child,Math.min);
-                    const prevNode = node.children[i-1];
+                    // const prevNode = node.children[i-1];
                     const offset = calcPush(leftContour,rightContour);
                     mod += offset;
                     child.mod = mod;
@@ -360,7 +355,7 @@ const TreeDrawing = (props) => {
 }
 
 
-const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,quadraticPosCalc,buchheimPosCalc];
+const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,widePosCalc,buchheimPosCalc];
 const Forest = (props) => {
     const methodPositions = methods.map((method,i) => 
         method(props.edgeMap,props.nodeCount)
