@@ -241,9 +241,7 @@ const buchheimPosCalc = (edgeMap,nodeCount) => {
     }
 
     // determines the appropriate mod value for the right subtree with respect to the left
-    const calcPush = (left,right) => {
-        const rightContour = calcContour(left, Math.max);
-        const leftContour = calcContour(right, Math.min);
+    const calcPush = (leftContour,rightContour) => {
         let maxSep = 0;
         const maxIter = Math.min(leftContour.length,rightContour.length);
         for (let i = 0; i < maxIter; i++) {
@@ -265,11 +263,24 @@ const buchheimPosCalc = (edgeMap,nodeCount) => {
 
             // determine how for each sub-tree needs to be pushed
             let mod = 0;
+            let rightContour = calcContour(node.children[0],Math.max);
             node.children.forEach((child,i) => {
                 if (i > 0) {
-                    let prevNode = node.children[i-1];
-                    mod += calcPush(prevNode, child);
+                    const leftContour = calcContour(child,Math.min);
+                    const prevNode = node.children[i-1];
+                    const offset = calcPush(leftContour,rightContour);
+                    mod += offset;
                     child.mod = mod;
+                    const newRightContour = calcContour(child,Math.max);
+                    rightContour.map(x => x-offset);
+                    for(let j = 0; j < newRightContour; j++) {
+                        if (j >= rightContour.length) {
+                            rightContour.push(newRightContour[j]);
+                        }
+                        else {
+                            rightContour[j] = Math.max(rightContour[j],newRightContour[j]);
+                        }
+                    }
                 }
             });
             // center the parent over the children 
