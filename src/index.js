@@ -65,12 +65,13 @@ const edgeMapToRootNode = (edgeMap) => {
 
 // TREE DRAWING METHODS
 
+
 // the Wetherell/Shannon algo works according to the python article
-const thinPosCalc = (edgeMap, nodeCount) => {
+const thinPosCalc = (edgeMap, nodeCount, separation=1) => {
     const nexts = Array(nodeCount).fill(0);
     const positions = Array(nodeCount);
     const applyMethod = (node,depth=0) => {
-        positions[node.id] = [SCALE*(nexts[depth]+1),SCALE*(depth+1)]
+        positions[node.id] = [SCALE*(separation*nexts[depth]+1),SCALE*(depth+1)]
         nexts[depth] += 1;
         if(node.children===null) {
             return;
@@ -116,41 +117,23 @@ const applyOffsets = (positions,node,depth=0,mod=0) => {
     }
 }
 
-// picks node positions so that parent nodes are centered above their children
-// more or less copied from the article and converted from python2.7 to JS
+
+// do thinPosCalc with extra separation, then center parents over children in post-order
 const parentBasedPosCalc = (edgeMap,nodeCount) => {
     const root = edgeMapToRootNode(edgeMap);
-    const positions = Array(nodeCount);
-    // indices for nexts and offset are depth
-    const setup = (node, depth=0, nexts, offset) => {
+    const positions = thinPosCalc(edgeMap,nodeCount,2);
+    const center = (node) => {
         // post-order ~ bottom-up
         if (node.children) {
             for (const child of node.children) {
-                setup(child,depth+1,nexts,offset);
+                center(child);
             }
+            const l_child = node.children[0];
+            const r_child = node.children[node.children.length-1];
+            positions[node.id][0] = (positions[l_child.id][0] + positions[r_child.id][0])/2
         }
-        node.depth = depth;
-        let place; 
-        if(node.children === null) {
-            place = nexts[depth];
-            node.x = place;
-        }
-        else if (node.children.length === 1) {
-            place =  node.children[0].x - 1
-        }
-        else {
-            const adder = (acc,cur) => (acc+cur.x);
-            place = node.children.reduce(adder,0) / node.children.length;
-        }
-        offset[depth] = Math.max(offset[depth], nexts[depth]-place);
-        if(node.children) {
-            node.x = place + offset[depth];
-        }
-        nexts[depth] += 2;
-        node.mod = offset[depth];
     }
-    setup(root,0,Array(nodeCount).fill(0),Array(nodeCount).fill(0));
-    applyOffsets(positions,root);
+    center(root);
     return positions;
 }
 
