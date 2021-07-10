@@ -161,19 +161,14 @@ const widePosCalc = (edgeMap, nodeCount) => {
             node.children.forEach((child) => {
                 child.mod -= mod/2;
             });
-            node.leftmost  = Math.min(...node.children.map(child=>(child.mod+child.leftmost)));
-            node.rightmost = Math.max(...node.children.map(child=>(child.mod+child.rightmost)));
+            const l_child = node.children[0];
+            node.leftmost = l_child.mod + l_child.leftmost;
+            const r_child = node.children[node.children.length-1]; 
+            node.rightmost = r_child.mod + r_child.rightmost;
         }
     }
     calcPos(root);
-    applyOffsets(positions,root);
-    let min_x = 0;
-    for(const [x,] of positions) {
-        min_x = Math.min(min_x,x);
-    }
-    for (let i = 0; i < nodeCount; i++) {
-        positions[i] = [positions[i][0]-min_x+SCALE,positions[i][1]+SCALE];
-    }
+    applyOffsets(positions,root,1,1-root.leftmost);
     return positions;
 }
 
