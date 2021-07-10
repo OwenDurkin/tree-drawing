@@ -106,12 +106,21 @@ const knuthPosCalc = (edgeMap, nodeCount) => {
     return positions;
 }
 
+// helper function for second pass on offset-based algos
+const applyOffsets = (positions,node,depth=0,mod=0) => {
+    positions[node.id] = [SCALE*mod,SCALE*depth];
+    if(node.children) {
+        for(const child of node.children) {
+            applyOffsets(positions,child,depth+1,mod+child.mod);
+        }
+    }
+}
 
 // picks node positions so that parent nodes are centered above their children
 // more or less copied from the article and converted from python2.7 to JS
 const parentBasedPosCalc = (edgeMap,nodeCount) => {
     const root = edgeMapToRootNode(edgeMap);
-    const positions = Array(nodeCount).fill([0,0]);
+    const positions = Array(nodeCount);
     // indices for nexts and offset are depth
     const setup = (node, depth=0, nexts, offset) => {
         // post-order ~ bottom-up
@@ -140,19 +149,8 @@ const parentBasedPosCalc = (edgeMap,nodeCount) => {
         nexts[depth] += 2;
         node.mod = offset[depth];
     }
-    const addmods = (node,modsum=0) => {
-        node.x = node.x + modsum;
-        positions[node.id] = [SCALE*(node.x+1), SCALE*(node.depth+1)];
-        if(node.children === null) {
-            return;
-        }
-        for(const child of node.children) {
-            addmods(child, modsum);
-        }
-    }
-
     setup(root,0,Array(nodeCount).fill(0),Array(nodeCount).fill(0));
-    addmods(root,0);
+    applyOffsets(positions,root);
     return positions;
 }
 
@@ -184,16 +182,8 @@ const widePosCalc = (edgeMap, nodeCount) => {
             node.rightmost = Math.max(...node.children.map(child=>(child.mod+child.rightmost)));
         }
     }
-    const applyPos = (node,depth=0,mod=0) => {
-        positions[node.id] = [SCALE*mod,SCALE*depth];
-        if(node.children) {
-            for(const child of node.children) {
-                applyPos(child,depth+1,mod+child.mod);
-            }
-        }
-    }
     calcPos(root);
-    applyPos(root);
+    applyOffsets(positions,root);
     let min_x = 0;
     for(const [x,] of positions) {
         min_x = Math.min(min_x,x);
@@ -284,19 +274,10 @@ const buchheimPosCalc = (edgeMap,nodeCount) => {
             });
         }
     }
-    // apply shifts in O(n) time throughout the tree
-    const secondwalk = (node, depth=0, mod=0) => {
-        positions[node.id] = [SCALE*mod,SCALE*depth];
-        if(node.children) {
-            node.children.forEach((child,i) => {
-                secondwalk(child,depth+1,mod+child.mod);
-            });
-        }
-    }
     // determine mod values for each node (subtree)
     firstwalk(root);
     // determine actual x coordinates for each node according to mod values
-    secondwalk(root);
+    applyOffsets(positions,root);
     // some nodes will have negative x-coordinates: push off-screen nodes to the right
     let min_x = 0;
     for (const [x,] of positions) {
