@@ -10,6 +10,7 @@ const SCREEN_HEIGHT = 300;
 
 const RADIUS = 10;
 const STROKE_WIDTH = 4;
+const NODE_SEP = 1;
 
 // for separation of nodes
 const SCALE = RADIUS+20;
@@ -67,9 +68,8 @@ const edgeMapToRootNode = (edgeMap) => {
 
 
 // the Wetherell/Shannon algo works according to the python article
-const thinPosCalc = (edgeMap, nodeCount, separation=1) => {
-    const nexts = Array(nodeCount).fill(0);
-    const positions = Array(nodeCount);
+const thinPosCalc = (root, positions, separation=1) => {
+    const nexts = Array(positions.length).fill(0);
     const applyMethod = (node,depth=0) => {
         positions[node.id] = [SCALE*(separation*nexts[depth]+1),SCALE*(depth+1)]
         nexts[depth] += 1;
@@ -80,16 +80,15 @@ const thinPosCalc = (edgeMap, nodeCount, separation=1) => {
             applyMethod(child,depth+1);
         }
     }
-    const root = edgeMapToRootNode(edgeMap);
     applyMethod(root);
     return positions;
 }
 
 
 // only works on binary trees, uses in-order traversal
-const knuthPosCalc = (edgeMap, nodeCount) => {
-    const positions = Array(nodeCount).fill([0,0]);
-    const root = edgeMapToRootNode(edgeMap);
+const knuthPosCalc = (root, positions) => {
+    // there is no generalization to n-ary trees, so set non-left/right children to be at 0,0
+    positions.fill([0,0]);
     let i = 0;
     const applyMethod = (node, depth) => {
         const left = node.children ? node.children[0] : null;
@@ -107,21 +106,11 @@ const knuthPosCalc = (edgeMap, nodeCount) => {
     return positions;
 }
 
-// helper function for second pass on offset-based algos
-const applyOffsets = (positions,node,depth=0,mod=0) => {
-    positions[node.id] = [SCALE*mod,SCALE*depth];
-    if(node.children) {
-        for(const child of node.children) {
-            applyOffsets(positions,child,depth+1,mod+child.mod);
-        }
-    }
-}
-
-
 // do thinPosCalc with extra separation, then center parents over children in post-order
-const parentBasedPosCalc = (edgeMap,nodeCount) => {
-    const root = edgeMapToRootNode(edgeMap);
-    const positions = thinPosCalc(edgeMap,nodeCount,2);
+// can cause subtree collision
+//
+const parentBasedPosCalc = (root,positions) => {
+    positions = thinPosCalc(root,positions,2);
     const center = (node) => {
         // post-order ~ bottom-up
         if (node.children) {
@@ -138,10 +127,25 @@ const parentBasedPosCalc = (edgeMap,nodeCount) => {
 }
 
 
-const NODE_SEP = 1;
-const widePosCalc = (edgeMap, nodeCount) => {
-    const positions = Array(nodeCount);
-    const root = edgeMapToRootNode(edgeMap);
+// meta-function for methods that use offsets
+const offsetBasedCalculation = (root, positions, method) => {
+    // helper function for second pass on offset-based algos
+    const applyOffsets = (node,positions,depth=0,mod=0) => {
+        positions[node.id] = [SCALE*mod,SCALE*depth];
+        if(node.children) {
+            for(const child of node.children) {
+                applyOffsets(child,positions,depth+1,mod+child.mod);
+            }
+        }
+    }
+    // calculate the offsets, then apply them to calculate the real coordinates
+    method(root);
+    applyOffsets(root,positions,1,1-root.leftmost);
+    return positions;
+}
+
+
+const widePosCalc = (root, positions) => {
     const calcPos = (node) => {
         node.mod = 0;
         node.rightmost = 0;
@@ -167,16 +171,11 @@ const widePosCalc = (edgeMap, nodeCount) => {
             node.rightmost = r_child.mod + r_child.rightmost;
         }
     }
-    calcPos(root);
-    applyOffsets(positions,root,1,1-root.leftmost);
-    return positions;
+    return offsetBasedCalculation(root, positions, calcPos);
 }
 
 
-const buchheimPosCalc = (edgeMap,nodeCount) => {
-    const positions = Array(nodeCount);
-    const root = edgeMapToRootNode(edgeMap);
-
+const buchheimPosCalc = (root,positions) => {
     // returns a contour of the given subtree with given root
     // contour entries denote maximum x distance from the root node
     // comp is a comparator function
@@ -218,6 +217,7 @@ const buchheimPosCalc = (edgeMap,nodeCount) => {
     // center children over parents
     const firstwalk = (node) => {
         node.mod = 0;
+        node.leftmost = 0;
         if(node.children) {
             // calculate sub-trees
             node.children.forEach((child) => {
@@ -249,22 +249,11 @@ const buchheimPosCalc = (edgeMap,nodeCount) => {
             // center the parent over the children 
             node.children.forEach((child) => {
                 child.mod -= mod/2;
+                node.leftmost = Math.min(node.leftmost, child.mod + child.leftmost);
             });
         }
     }
-    // determine mod values for each node (subtree)
-    firstwalk(root);
-    // determine actual x coordinates for each node according to mod values
-    applyOffsets(positions,root);
-    // some nodes will have negative x-coordinates: push off-screen nodes to the right
-    let min_x = 0;
-    for (const [x,] of positions) {
-        min_x = Math.min(min_x,x);
-    }
-    for (let i = 0; i < nodeCount; i++) {
-        positions[i] = [positions[i][0]-min_x+SCALE,positions[i][1]+SCALE];
-    }
-    return positions;
+    return offsetBasedCalculation(root,positions,firstwalk);
 }
 
 // ACTUAL REACT COMPONENTS
@@ -314,24 +303,25 @@ const TreeDrawing = (props) => {
 }
 
 
-const methods = [thinPosCalc, knuthPosCalc,parentBasedPosCalc,widePosCalc,buchheimPosCalc];
+const methods = [thinPosCalc,knuthPosCalc,parentBasedPosCalc,widePosCalc,buchheimPosCalc];
 const Forest = (props) => {
-    const methodPositions = methods.map((method,i) => 
-        method(props.edgeMap,props.nodeCount)
-    );
-    const drawings = methodPositions.map((methodPosition,i) => {
+    const drawings = methods.map((method) => {
+        const root = edgeMapToRootNode(props.edgeMap);
+        const positions = Array(props.nodeCount);
+        method(root,positions);
+
         let width = 0;
         let height = 0;
-        methodPosition.forEach((xycoord) => {
+        positions.forEach((xycoord) => {
             const [x,y] = xycoord;
             width = Math.max(width, x);
             height = Math.max(height, y);
         });
         return (
-            <div className="Column" key={i}>
-                <h1>{methods[i].name.substr(0,methods[i].name.search("Pos"))}</h1>
+            <div className="Column" key={method.name}>
+                <h1>{method.name.substr(0,method.name.search("Pos"))}</h1>
                 <TreeDrawing
-                    nodePositions={methodPosition}
+                    nodePositions={positions}
                     edgeMap={props.edgeMap}
                     nodeCount={props.nodeCount}
                     width={width+SCALE}
