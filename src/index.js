@@ -374,7 +374,7 @@ const TREES = [
         7: [8],
         8: [9]
     }, 10],
-    [{ // Dr. Dobbs
+    [{ // From Walker's paper
         0: [1,2,3],
         1: [4,5],
         5: [6,7],
