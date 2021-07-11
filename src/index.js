@@ -258,7 +258,6 @@ const buchheimPosCalc = (root,positions) => {
 
 // ACTUAL REACT COMPONENTS
 
-// props: x,y
 const Node = (props) => (
     <circle
         cx={props.x}
@@ -273,25 +272,24 @@ const TreeDrawing = (props) => {
     const nodes = [];
     const edges = [];
     for (let i = 0; i < props.nodeCount; i++) {
-        const [x,y] = props.nodePositions[i];
+        const [px,py] = props.nodePositions[i];
         nodes.push(
-            (<Node key={i} x={x} y={y} />)
+            (<Node key={i} x={px} y={py} />)
         );
-        const curEdges = props.edgeMap[i];
-        if (curEdges === undefined) {
+        const childIndices = props.edgeMap[i];
+        if (childIndices === undefined) {
             continue;
         }
-        for(let j = 0; j < curEdges.length; j++) {
-            const c = curEdges[j];
-            edges.push((<line
-                key={[i,j]}
-                x1={props.nodePositions[i][0]}
-                y1={props.nodePositions[i][1]}
-                x2={props.nodePositions[c][0]}
-                y2={props.nodePositions[c][1]}
-                stroke="black"
-                strokeWidth={STROKE_WIDTH}
-            />));
+        for(let j = 0; j < childIndices.length; j++) {
+            const childIdx = childIndices[j];
+            const [cx,cy] = props.nodePositions[childIdx];
+            // draw a line from the parent node to the child node
+            edges.push((
+                <line
+                    key={[i,j]} x1={px} y1={py} x2={cx} y2={cy}
+                    stroke="black" strokeWidth={STROKE_WIDTH}
+                />
+            ));
         }
     }
     return (
@@ -304,6 +302,7 @@ const TreeDrawing = (props) => {
 
 
 const methods = [thinPosCalc,knuthPosCalc,parentBasedPosCalc,widePosCalc,buchheimPosCalc];
+// A "Forest" is a row of tree drawings for a given tree- one for each method in methods
 const Forest = (props) => {
     const drawings = methods.map((method) => {
         const root = edgeMapToRootNode(props.edgeMap);
