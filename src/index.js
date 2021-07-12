@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import {RADIUS, STROKE_WIDTH, NODE_SEP, SCALE,} from './config.js'
+import {TREES,} from './data.js'
 import {thinPosCalc, knuthPosCalc, parentBasedPosCalc, widePosCalc, buchheimPosCalc} from './strategies.js';
 import './index.css';
 
@@ -129,59 +130,6 @@ const Forest = (props) => {
     );
 }
 
-
-
-const TREES = [
-    [{ // full binary tree of size 3
-        0: [1,2],
-    }, 3],
-    [{ // simple tree
-        0: [1,2],
-        1: [3,],
-        2: [4,5],
-        3: [6,7],
-    }, 8],
-    [{ // full tree
-        0: [1,2],
-        1: [3,4],
-        2: [5,6],
-        3: [7,8],
-        4: [9,10],
-        5: [11,12],
-        6: [13,14],
-    }, 15],
-    [{ // linked list
-        0: [1],
-        1: [2],
-        2: [3],
-        3: [4],
-        4: [5],
-    }, 6],
-    [{ // sparse
-        0: [1,2],
-        2: [3],
-        3: [4],
-        4: [5],
-        5: [6],
-        6: [7],
-        7: [8],
-        8: [9]
-    }, 10],
-    [{ // From Walker's paper
-        0: [1,2,3],
-        1: [4,5],
-        5: [6,7],
-        3: [8,9],
-        9: [10,11,12,13,14],
-    }, 15],
-    [{ // wide boi
-        0: [1,2],
-        1: [3],
-        3: [4,5,6,7,8],
-        2: [9,10,11,12],
-        12: [13,14,15,16,17],
-    },18],
-];
 
 const alltreedrawings = TREES.map((tree,i) => (
     <Forest key={i} nodeCount={tree[1]} edgeMap={tree[0]} />)
