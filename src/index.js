@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 
 import {RADIUS, STROKE_WIDTH, NODE_SEP, SCALE,} from './config.js'
 import {TREES,} from './data.js'
-import {thinPosCalc, knuthPosCalc, parentBasedPosCalc, widePosCalc, buchheimPosCalc} from './strategies.js';
+import {thinPosCalc, knuthPosCalc, parentBasedPosCalc, widePosCalc, buchheimPosCalc, radialPosCalc} from './strategies.js';
 import './index.css';
 
 // links
@@ -95,7 +95,14 @@ const TreeDrawing = (props) => {
 }
 
 
-const methods = [thinPosCalc,knuthPosCalc,parentBasedPosCalc,widePosCalc,buchheimPosCalc,];
+const methods = [
+    thinPosCalc,
+    knuthPosCalc,
+    parentBasedPosCalc,
+    widePosCalc,
+//  buchheimPosCalc,
+    radialPosCalc,
+];
 // A "Forest" is a row of tree drawings for a given tree- one for each method in methods
 const Forest = (props) => {
     const drawings = methods.map((method) => {

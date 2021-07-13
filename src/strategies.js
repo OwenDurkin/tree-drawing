@@ -193,3 +193,62 @@ export const buchheimPosCalc = (root,positions) => {
 }
 
 
+// Algorithm R1 from Eades 1992, Drawing Free Trees
+export const radialPosCalc = (root,positions) => {
+
+    // determines the "width" of each node,
+    // which is the number of leaf nodes in its subtree
+    const calcWidth = (node,depth=0) => {
+        if(node.children) {
+            let count = 0;
+            for (const child of node.children) {
+                count += calcWidth(child);
+            }
+            node.width = count;
+            return count;
+        }
+        // leaf node
+        node.width = 1; 
+        return 1;
+    }
+
+    // for centering after the fact
+    let min_x = 0;
+    let min_y = 0;
+    // wedge_low and wedge_high are angles wrt the center of the circle
+    // which define the wedge for the current subtree
+    const applyMethod = (node, depth, wedge_low, wedge_high) => {
+        // assign position for current node
+        const [radius,angle] = [SCALE*(depth), (wedge_low+wedge_high)/2]
+        positions[node.id] = [radius*Math.cos(angle), radius*Math.sin(angle)];
+        min_x = Math.min(min_x, positions[node.id][0]-SCALE);
+        min_y = Math.min(min_y, positions[node.id][1]-SCALE);
+        // allocate wedges for children
+        if (node.children) {
+            const wedge_width = wedge_high-wedge_low;
+            let s = wedge_width/node.width;
+            let a = wedge_low;
+
+            if (depth > 0) {
+                const wedge_restriction = 2*Math.acos((depth+1)/depth)
+                if (wedge_restriction < wedge_width) {
+                    s = wedge_restriction/node.width;
+                    a = (wedge_low+wedge_high-wedge_restriction)/2;
+                }
+            }
+
+            for (const child of node.children) {
+                applyMethod(child,depth+1,a,a+s*child.width);
+                a += s*child.width;
+            }
+        }
+    };
+
+    calcWidth(root);
+    applyMethod(root,0,0,2*Math.PI);
+
+    for(let i = 0; i < positions.length; i++) {
+        positions[i] = [positions[i][0]-min_x, positions[i][1]-min_y];
+    }
+    return positions;
+}
