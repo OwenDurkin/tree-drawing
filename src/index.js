@@ -57,7 +57,7 @@ const Node = (props) => (
         cx={props.x}
         cy={props.y}
         r={RADIUS}
-        style={{fill:"black",stroke:"black"}}
+        style={{fill:"black",stroke:props.isRoot?"red":"black",strokeWidth:3}}
     />
 );
 
@@ -68,7 +68,7 @@ const TreeDrawing = (props) => {
     for (let i = 0; i < props.nodeCount; i++) {
         const [px,py] = props.nodePositions[i];
         nodes.push(
-            (<Node key={i} x={px} y={py} />)
+            (<Node key={i} x={px} y={py} isRoot={i==0}/>)
         );
         const childIndices = props.edgeMap[i];
         if (childIndices === undefined) {
